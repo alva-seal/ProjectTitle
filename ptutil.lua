@@ -26,9 +26,9 @@ local BookInfoManager = require("bookinfomanager")
 
 local ptutil = {}
 
-ptutil.title_serif = "source/SourceSerif4-BoldIt.ttf"
-ptutil.good_serif = "source/SourceSerif4-Regular.ttf"
-ptutil.good_sans = "source/SourceSans3-Regular.ttf"
+ptutil.title_serif = "FuturaNext-Medium.otf"
+ptutil.good_serif = "FilsonProLight.otf"
+ptutil.good_sans = "FilsonProLight.otf"
 
 ptutil.koreader_dir = DataStorage:getDataDir()
 

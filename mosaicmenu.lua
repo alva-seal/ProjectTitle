@@ -1267,9 +1267,9 @@ function MosaicMenu:_recalculateDimen()
             margin_v = 0,
             margin_h = 0,
             bordersize = Screen:scaleBySize(0.5),
-            bordercolor = Blitbuffer.COLOR_BLACK,
-            bgcolor = Blitbuffer.COLOR_GRAY_E,
-            fillcolor = Blitbuffer.COLOR_GRAY_6,
+            bordercolor = Blitbuffer.colorFromString("#400040"),
+            bgcolor = Blitbuffer.colorFromString("#ff44ff"),
+            fillcolor = Blitbuffer.colorFromString("#660066")
         }
     end
 end
