@@ -86,13 +86,13 @@ ptutil.grid_defaults = {
     default_rows = 3,
 }
 
-ptutil.title_serif = "source/SourceSerif4-BoldIt.ttf"
-ptutil.good_serif = "source/SourceSerif4-Regular.ttf"
-ptutil.good_serif_it = "source/SourceSerif4-It.ttf"
-ptutil.good_serif_bold = "source/SourceSerif4-Bold.ttf"
-ptutil.good_sans = "source/SourceSans3-Regular.ttf"
-ptutil.good_sans_it = "source/SourceSans4-It.ttf"
-ptutil.good_sans_bold = "source/SourceSans4-Bold.ttf"
+ptutil.title_serif = "FuturaNext-Medium.otf"
+ptutil.good_serif = "FilsonProLight.otf"
+ptutil.good_serif_it = "FilsonProLightItalic.otf"
+ptutil.good_serif_bold = "FilsonProMedium.otf"
+ptutil.good_sans = "FilsonProLight.otf"
+ptutil.good_sans_it = "FilsonProLightItalic.otf"
+ptutil.good_sans_bold = "FilsonProMedium.otf"
 
 -- a non-standard space is used here because it looks nicer
 ptutil.separator = {
