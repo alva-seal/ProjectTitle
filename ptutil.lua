@@ -26,9 +26,83 @@ local BookInfoManager = require("bookinfomanager")
 
 local ptutil = {}
 
+-- These values adjust defaults and limits for the List views (Cover List, Details List, Filenames List)
+ptutil.list_defaults = {
+    -- Progress bar settings
+    progress_bar_max_size = 235,      -- maximum progress bar width in pixels
+    progress_bar_pixels_per_page = 3, -- pixels per page for progress bar calculation
+    progress_bar_min_size = 25,       -- minimum progress bar width in pixels
+
+    -- Author display settings
+    authors_limit_default = 2,     -- maximum number of authors to show
+    authors_limit_with_series = 1, -- maximum authors when series is also shown on separate line
+
+    -- Font size adjustment step (used when fitting text into available space)
+    fontsize_dec_step = 2, -- font size decrement step when adjusting to fit
+
+    -- Font size ranges (nominal sizes based on 64px item height)
+    directory_font_nominal = 20, -- nominal directory font size
+    directory_font_max = 26,     -- maximum directory font size
+    title_font_nominal = 20,     -- nominal title font size
+    title_font_max = 26,         -- maximum title font size
+    title_font_min = 20,         -- minimum title font size
+    authors_font_nominal = 14,   -- nominal authors/metadata font size
+    authors_font_max = 18,       -- maximum authors font size
+    authors_font_min = 10,       -- minimum authors font size
+    wright_font_nominal = 12,    -- nominal right widget font size
+    wright_font_max = 18,        -- maximum right widget font size
+
+    -- calibre tags/keywords
+    tags_font_min = 10,   -- minimum tags font size
+    tags_font_offset = 3, -- offset from authors font size for tags
+    tags_limit = 9999,    -- limits the number of tags displayed when enabled
+
+    -- Page item limits
+    max_items_per_page = 10,
+    min_items_per_page = 3,
+    default_items_per_page = 7,
+}
+
+-- These values adjust defaults and limits for the Cover Grid view
+ptutil.grid_defaults = {
+    -- Progress bar settings
+    progress_bar_max_size = ptutil.list_defaults.progress_bar_max_size,               -- maximum progress bar width in pixels
+    progress_bar_pixels_per_page = ptutil.list_defaults.progress_bar_pixels_per_page, -- pixels per page for progress bar calculation
+    progress_bar_min_size = 40,                                                       -- minimum progress bar width in pixels
+
+    -- Font size adjustment step (used when fitting text into available space)
+    fontsize_dec_step = 1, -- font size decrement step when adjusting to fit
+
+    -- Font size ranges (nominal sizes based on 64px item height)
+    dir_font_nominal = 22, -- nominal directory font size
+    dir_font_min = 18,     -- minimum directory font size
+
+    -- Page item limits
+    max_cols = 4,
+    max_rows = 4,
+    min_cols = 2,
+    min_rows = 2,
+    default_cols = 3,
+    default_rows = 3,
+}
+
 ptutil.title_serif = "FuturaNext-Medium.otf"
 ptutil.good_serif = "FilsonProLight.otf"
+ptutil.good_serif_it = "FilsonProLightItalic.otf"
+ptutil.good_serif_bold = "FilsonProMedium.otf"
 ptutil.good_sans = "FilsonProLight.otf"
+ptutil.good_sans_it = "FilsonProLightItalic.otf"
+ptutil.good_sans_bold = "FilsonProMedium.otf"
+
+-- a non-standard space is used here because it looks nicer
+ptutil.separator = {
+    bar     = " | ",
+    bullet  = " • ",
+    comma   = ", ", -- except here
+    dot     = " · ",
+    em_dash = " — ",
+    en_dash = " - ",
+}
 
 ptutil.koreader_dir = DataStorage:getDataDir()
 
@@ -68,7 +142,7 @@ function ptutil.installFonts()
         if not result then return false end
     end
     if util.directoryExists(fonts_path) then
-        -- copy the entire "source" 
+        -- copy the entire "source"
         result = copyRecursive(ptutil.getPluginDir() .. "/fonts/source", fonts_path)
         logger.info(ptdbg.logprefix, "Copying fonts")
         if not result then return false end
@@ -492,7 +566,7 @@ function ptutil.isPathChooser(self)
 end
 
 function ptutil.formatAuthors(authors, authors_limit)
-    local formatted_authors
+    local formatted_authors = ""
     if authors and authors:find("\n") then
         local full_authors_list = util.splitToArray(authors, "\n")
         local nb_authors = #full_authors_list
@@ -511,6 +585,71 @@ function ptutil.formatAuthors(authors, authors_limit)
         formatted_authors = BD.auto(authors)
     end
     return formatted_authors
+end
+
+function ptutil.formatSeries(series, series_index)
+    local formatted_series = ""
+    -- suppress series if index is "0"
+    if series_index == 0 then
+        return ""
+    end
+    -- if series is formated like "big series: small subseries" then show only "small subseries"
+    if string.match(series, ": ") then
+        series = string.sub(series, util.lastIndexOf(series, ": ") + 1, -1)
+    end
+    if series_index then
+        formatted_series = "#" .. series_index .. ptutil.separator.en_dash .. BD.auto(series)
+    else
+        formatted_series = BD.auto(series)
+    end
+    return formatted_series
+end
+
+function ptutil.formatAuthorSeries(authors, series, series_mode, show_tags)
+    local formatted_author_series = ""
+    if authors == "" then
+        if series_mode == "series_in_separate_line" and series ~= "" then
+            formatted_author_series = series
+        end
+    else
+        if show_tags then
+            local authors_list = util.splitToArray(authors, "\n")
+            authors = table.concat(authors_list, ptutil.separator.comma)
+        end
+        if series_mode == "series_in_separate_line" and series ~= "" then
+            if show_tags then
+                formatted_author_series = authors .. ptutil.separator.dot .. series
+            else
+                formatted_author_series = authors .. "\n" .. series
+            end
+        else
+            formatted_author_series = authors
+        end
+    end
+    return formatted_author_series
+end
+
+-- Format tags/keywords coming from calibre/bookinfo.keywords
+-- Expect keywords as newline-separated values. Return a compact
+-- single-line string limited to `tags_limit` items or nil if no tags.
+function ptutil.formatTags(keywords, tags_limit)
+    if not keywords or keywords == "" then return nil end
+    local final_tags_list = {}
+    local full_list = util.splitToArray(keywords, "\n")
+    local nb_tags = #full_list
+    if nb_tags == 0 then return nil end
+    tags_limit = tags_limit or 9999
+    for i = 1, math.min(tags_limit, nb_tags) do
+        local t = full_list[i]
+        if t and t ~= "" then
+            table.insert(final_tags_list, BD.auto(t))
+        end
+    end
+    local formatted_tags = table.concat(final_tags_list, ptutil.separator.bullet)
+    if nb_tags > tags_limit then
+        formatted_tags = formatted_tags .. "…"
+    end
+    return formatted_tags
 end
 
 return ptutil

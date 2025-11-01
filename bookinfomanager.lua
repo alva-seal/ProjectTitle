@@ -162,7 +162,7 @@ function BookInfoManager:getDbSize()
     if res then
         num_books = string.match(tostring(res[1][1]), "^(%d+)")
     end
-    return friendly_file_size .. "  —  " .. num_books .. " " .. _("Books")
+    return friendly_file_size .. " (" .. num_books .. " " .. _("Books") .. ")"
 end
 
 function BookInfoManager:createDB()
@@ -591,7 +591,10 @@ function BookInfoManager:extractBookInfo(filepath, cover_specs)
                             else
                                 fp = string.match(l, "#pages")
                                 -- check for single line format
-                                fv = string.match(l, "&quot;#value#&quot;: (%d+),")
+                                -- only look for a numerical value if #pages is found
+                                if fp then
+                                    fv = string.match(l, "&quot;#value#&quot;: (%d+),")
+                                end
                                 if fv then
                                     return fp, fv, true
                                 end
