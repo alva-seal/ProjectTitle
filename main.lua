@@ -52,7 +52,7 @@ end
 
     https://github.com/joshuacant/ProjectTitle/wiki/Use-With-Nightly-KOReader-Builds
 --]]
-local safe_version = 202508000000
+local safe_version = 202510000000
 local cv_int, cv_commit = Version:getNormalizedCurrentVersion()
 local version_unsafe = true
 if (cv_int == safe_version or util.fileExists(data_dir .. "/settings/pt-skipversioncheck.txt")) then
@@ -161,7 +161,6 @@ local CoverBrowser = WidgetContainer:extend {
         -- { _("Filenames List") },
     },
 }
-
 
 function CoverBrowser:onDispatcherRegisterActions()
     Dispatcher:registerAction("dec_items_pp", {
@@ -280,14 +279,17 @@ function CoverBrowser:init()
         BookStatusWidget.getStatusContent = AltBookStatusWidget.getStatusContent
         BookStatusWidget.genBookInfoGroup = AltBookStatusWidget.genBookInfoGroup
         BookStatusWidget.genSummaryGroup = AltBookStatusWidget.genSummaryGroup
+        BookStatusWidget.genStatisticsGroup = AltBookStatusWidget.genStatisticsGroup
     end
 
     local home_dir = G_reader_settings:readSetting("home_dir")
     if home_dir then logger.info(ptdbg.logprefix, "Home directory is set to: ", home_dir) end
     if home_dir and util.pathExists(home_dir) and BookInfoManager:getSetting("autoscan_on_eject") then
         local cover_specs = { max_cover_w = 1, max_cover_h = 1, }
-        Trapper:wrap(function()
-            BookInfoManager:extractBooksInDirectory(home_dir, cover_specs, true)
+        UIManager:tickAfterNext(function()
+            Trapper:wrap(function()
+                BookInfoManager:extractBooksInDirectory(home_dir, cover_specs, true)
+            end)
         end)
     end
 
@@ -362,8 +364,7 @@ function CoverBrowser:addToMainMenu(menu_items)
         sub_item_table = {
             {
                 text_func = function()
-                    return _("Portrait cover grid mode") .. T(_(": %1 × %2"), fc.nb_cols_portrait,
-                        fc.nb_rows_portrait)
+                    return _("Portrait cover grid mode") .. T(_(": %1 × %2"), fc.nb_cols_portrait, fc.nb_rows_portrait)
                 end,
                 -- Best to not "keep_menu_open = true", to see how this apply on the full view
                 callback = function()
@@ -383,7 +384,7 @@ function CoverBrowser:addToMainMenu(menu_items)
                         right_value = nb_rows,
                         right_min = ptutil.grid_defaults.min_rows,
                         right_max = ptutil.grid_defaults.max_rows,
-                        right_default = ptutil.list_defaults.default_rows,
+                        right_default = ptutil.grid_defaults.default_rows,
                         right_precision = "%01d",
                         keep_shown_on_apply = true,
                         callback = function(left_value, right_value)
@@ -412,8 +413,7 @@ function CoverBrowser:addToMainMenu(menu_items)
             },
             {
                 text_func = function()
-                    return _("Landscape cover grid mode") .. T(_(": %1 × %2"), fc.nb_cols_landscape,
-                        fc.nb_rows_landscape)
+                    return _("Landscape cover grid mode") .. T(_(": %1 × %2"), fc.nb_cols_landscape, fc.nb_rows_landscape)
                 end,
                 callback = function()
                     local nb_cols = fc.nb_cols_landscape
@@ -432,7 +432,7 @@ function CoverBrowser:addToMainMenu(menu_items)
                         right_value = nb_rows,
                         right_min = ptutil.grid_defaults.min_rows,
                         right_max = ptutil.grid_defaults.max_rows,
-                        right_default = ptutil.grid_defaults.default_rols,
+                        right_default = ptutil.grid_defaults.default_rows,
                         right_precision = "%01d",
                         keep_shown_on_apply = true,
                         callback = function(left_value, right_value)
@@ -776,9 +776,9 @@ function CoverBrowser.initGrid(menu, display_mode)
     if menu == nil then return end
     if menu.nb_cols_portrait == nil then
         menu.nb_cols_portrait  = BookInfoManager:getSetting("nb_cols_portrait") or ptutil.grid_defaults.default_cols
-        menu.nb_rows_portrait  = BookInfoManager:getSetting("nb_rows_portrait") or ptutil.list_defaults.default_rows
+        menu.nb_rows_portrait  = BookInfoManager:getSetting("nb_rows_portrait") or ptutil.grid_defaults.default_rows
         menu.nb_cols_landscape = BookInfoManager:getSetting("nb_cols_landscape") or ptutil.grid_defaults.default_cols
-        menu.nb_rows_landscape = BookInfoManager:getSetting("nb_rows_landscape") or ptutil.list_defaults.default_rows
+        menu.nb_rows_landscape = BookInfoManager:getSetting("nb_rows_landscape") or ptutil.grid_defaults.default_rows
         -- initial List mode files_per_page will be calculated and saved by ListMenu on the first drawing
         menu.files_per_page    = BookInfoManager:getSetting("files_per_page")
     end

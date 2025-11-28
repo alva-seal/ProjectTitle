@@ -20,6 +20,7 @@ local DataStorage = require("datastorage")
 local SQ3 = require("lua-ljsqlite3/init")
 local ffiUtil = require("ffi/util")
 local util = require("util")
+local lfs = require("libs/libkoreader-lfs")
 local _ = require("l10n.gettext")
 local ptdbg = require("ptdbg")
 local BookInfoManager = require("bookinfomanager")
@@ -30,7 +31,7 @@ local ptutil = {}
 ptutil.list_defaults = {
     -- Progress bar settings
     progress_bar_max_size = 235,      -- maximum progress bar width in pixels
-    progress_bar_pixels_per_page = 3, -- pixels per page for progress bar calculation
+    progress_bar_pages_per_pixel = 3, -- pixels per page for progress bar calculation
     progress_bar_min_size = 25,       -- minimum progress bar width in pixels
 
     -- Author display settings
@@ -67,7 +68,7 @@ ptutil.list_defaults = {
 ptutil.grid_defaults = {
     -- Progress bar settings
     progress_bar_max_size = ptutil.list_defaults.progress_bar_max_size,               -- maximum progress bar width in pixels
-    progress_bar_pixels_per_page = ptutil.list_defaults.progress_bar_pixels_per_page, -- pixels per page for progress bar calculation
+    progress_bar_pages_per_pixel = ptutil.list_defaults.progress_bar_pages_per_pixel, -- pixels per page for progress bar calculation
     progress_bar_min_size = 40,                                                       -- minimum progress bar width in pixels
 
     -- Font size adjustment step (used when fitting text into available space)
@@ -84,15 +85,35 @@ ptutil.grid_defaults = {
     min_rows = 2,
     default_cols = 3,
     default_rows = 3,
+
+    -- Cover Art display
+    stretch_covers = false,
+    stretch_ratio = 1,
+}
+
+ptutil.footer_defaults = {
+    font_size = 20,
+    font_size_deviceinfo = 18,
+}
+
+ptutil.bookstatus_defaults = {
+    header_font_size = 20,
+    metainfo_font_size = 18,
+    title_font_size = 24,
+    description_font_size = Screen:scaleBySize(18),
 }
 
 ptutil.title_serif = "FuturaNext-Medium.otf"
 ptutil.good_serif = "FilsonProLight.otf"
 ptutil.good_serif_it = "FilsonProLightItalic.otf"
 ptutil.good_serif_bold = "FilsonProMedium.otf"
+ptutil.good_serif_boldit = "FilsonProLightItalic.otf""
 ptutil.good_sans = "FilsonProLight.otf"
 ptutil.good_sans_it = "FilsonProLightItalic.otf"
 ptutil.good_sans_bold = "FilsonProMedium.otf"
+ptutil.good_sans_boldit = "FilsonProLightItalic.otf""
+ptutil.title_serif = ptutil.good_serif_bold
+
 
 -- a non-standard space is used here because it looks nicer
 ptutil.separator = {
@@ -209,48 +230,21 @@ function ptutil.installIcons()
 end
 
 local function findCover(dir_path)
-    local COVER_CANDIDATES = { "cover", "folder", ".cover", ".folder" }
-    local COVER_EXTENSIONS = { ".jpg", ".jpeg", ".png", ".webp", ".gif" }
     if not dir_path or dir_path == "" or dir_path == ".." or dir_path:match("%.%.$") then
         return nil
     end
+
     dir_path = dir_path:gsub("[/\\]+$", "")
-    -- Try exact matches with lowercase and uppercase extensions
-    for _, candidate in ipairs(COVER_CANDIDATES) do
-        for _, ext in ipairs(COVER_EXTENSIONS) do
-            local exact_path = dir_path .. "/" .. candidate .. ext
-            local f = io.open(exact_path, "rb")
-            if f then
-                f:close()
-                return exact_path
-            end
-            local upper_path = dir_path .. "/" .. candidate .. ext:upper()
-            if upper_path ~= exact_path then
-                f = io.open(upper_path, "rb")
-                if f then
-                    f:close()
-                    return upper_path
-                end
+    if not util.directoryExists(dir_path) then return nil end
+
+    local fn_lc
+    for fn in lfs.dir(dir_path) do
+        fn_lc = fn:lower()
+        if fn_lc:match('^%.?cover%.') or fn_lc:match('^%.?folder%.') then
+            if fn_lc:match('%.jpe?g$') or fn_lc:match('%.png$') or fn_lc:match('%.webp$') or fn_lc:match('%.gif$') then
+                return dir_path .. "/" .. fn
             end
         end
-    end
-    -- Fallback: scan directory for case-insensitive matches
-    local success, handle = pcall(io.popen, 'ls -1 "' .. dir_path .. '" 2>/dev/null')
-    if success and handle then
-        for file in handle:lines() do
-            if file and file ~= "." and file ~= ".." and file ~= "" then
-                local file_lower = file:lower()
-                for _, candidate in ipairs(COVER_CANDIDATES) do
-                    for _, ext in ipairs(COVER_EXTENSIONS) do
-                        if file_lower == candidate .. ext then
-                            handle:close()
-                            return dir_path .. "/" .. file
-                        end
-                    end
-                end
-            end
-        end
-        handle:close()
     end
     return nil
 end
@@ -317,7 +311,7 @@ local function query_cover_paths(folder, include_subfolders)
     local db_conn = SQ3.open(DataStorage:getSettingsDir() .. "/PT_bookinfo_cache.sqlite3")
     db_conn:set_busy_timeout(5000)
 
-    if not util.pathExists(folder) then return nil end
+    if not util.directoryExists(folder) then return nil end
 
     local query
     folder = folder:gsub("'", "''")
@@ -548,7 +542,7 @@ function ptutil.showProgressBar(pages)
     local show_progress_bar = false
     local est_page_count = pages or nil
     if BookInfoManager:getSetting("force_max_progressbars") and not BookInfoManager:getSetting("show_pages_read_as_progress") then
-        est_page_count = "700"
+        est_page_count = ptutil.list_defaults.progress_bar_pages_per_pixel * ptutil.list_defaults.progress_bar_max_size
     end
     show_progress_bar = est_page_count ~= nil and
         BookInfoManager:getSetting("hide_file_info") and                    -- "show file info"
@@ -607,7 +601,7 @@ end
 
 function ptutil.formatAuthorSeries(authors, series, series_mode, show_tags)
     local formatted_author_series = ""
-    if authors == "" then
+    if authors == nil or authors == "" then
         if series_mode == "series_in_separate_line" and series ~= "" then
             formatted_author_series = series
         end
