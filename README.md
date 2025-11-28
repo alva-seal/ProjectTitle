@@ -2,8 +2,13 @@
 <sub>A collage of screenshots showing KOReader with Project: Title installed demonstrating a variety of possible display settings.</sub><br />
 <sup>The books used are from the Standard Ebooks collection and the text visible is part of their cover design, not overlaid by this plugin.</sup> 
 
-## A new view for KOReader
-Project: Title is a plugin made by two people who love KOreader but wanted to expand upon the Cover Browser plugin. We desired an interface that would blend in with the very best that commercial eReaders have. Something that would make the time between books, looking for that next read, as pleasant as possible.
+## Adaptions in this repo:
+- change colors for page progress
+- changed fonts
+
+
+#### A new view for KOReader, based on Cover Browser.
+Project: Title is a project by two people who love KOreader but wanted to expand upon the Cover Browser plugin. We desired an interface that would blend in with the very best that commercial eReaders have. Something that would make the time between books, looking for that next read, as pleasant as possible.
 
 ## Features
 * **A Speedy Title Bar**: Thinner with more functionality — adding Favorites, History, Open Last Book, and Up Folder buttons to help you get exactly where you need as fast as possible.
