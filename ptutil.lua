@@ -111,7 +111,7 @@ ptutil.good_serif_boldit = "FilsonProLightItalic.otf"
 ptutil.good_sans = "FilsonProLight.otf"
 ptutil.good_sans_it = "FilsonProLightItalic.otf"
 ptutil.good_sans_bold = "FilsonProMedium.otf"
-ptutil.good_sans_boldit = "FilsonProLightItalic.otf""
+ptutil.good_sans_boldit = "FilsonProLightItalic.otf"
 ptutil.title_serif = ptutil.good_serif_bold
 
 
