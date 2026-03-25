@@ -145,8 +145,8 @@ function ListMenuItem:update()
     -- We'll draw some padding around cover images so they don't run up against
     -- other parts of the list item or decorations
     local padding_size = Screen:scaleBySize(4)
-    local max_img_w = dimen.h - 2 * padding_size -- width = height, squared
-    local max_img_h = dimen.h - 2 * padding_size
+    local max_img_w = dimen.h - (2 * padding_size) -- width = height, squared
+    local max_img_h = dimen.h - (2 * padding_size)
     local cover_specs = {
         max_cover_w = max_img_w,
         max_cover_h = max_img_h,
@@ -219,7 +219,7 @@ function ListMenuItem:update()
         if self.do_cover_image and is_pathchooser == false then
             local subfolder_cover_image
             -- check for folder image
-            subfolder_cover_image = ptutil.getFolderCover(self.filepath, max_img_w * 0.82, max_img_h)
+            subfolder_cover_image = ptutil.getFolderCover(self.filepath, max_img_w * 0.82, max_img_h, self.entry.pt_cover_path)
             -- check for books with covers in the subfolder
             if subfolder_cover_image == nil and not BookInfoManager:getSetting("disable_auto_foldercovers") then
                 subfolder_cover_image = ptutil.getSubfolderCoverImages(self.filepath, max_img_w, max_img_h)
@@ -421,10 +421,12 @@ function ListMenuItem:update()
                 self.menu.cover_info_cache = {}
             end
 
-            local finished_text = _("Finished")
-            local abandoned_string = _("On hold")
-            local read_text = _("Reading")
-            local unread_text = _("New")
+            local progress_strings = {
+                finished = _("Finished"),
+                abandoned = _("On hold"),
+                reading = _("Reading"),
+                unread = _("New"),
+            }
             local pages_str = ""
             local pages_left_str = ""
             local percent_str = ""
@@ -595,28 +597,8 @@ function ListMenuItem:update()
 
             -- show progress text, page text, and/or file info text
             if BookInfoManager:getSetting("hide_file_info") then
-                if status == "complete" then
-                    progress_str = finished_text
-                elseif status == "abandoned" then
-                    progress_str = abandoned_string
-                elseif percent_finished then
-                    progress_str = read_text
-                    if not draw_progressbar then
-                        percent_str = math.floor(100 * percent_finished) .. "%"
-                    end
-                    if pages then
-                        if BookInfoManager:getSetting("show_pages_read_as_progress") then
-                            percent_str = read_text
-                            pages_str = T(_("Page %1 of %2"), Math.round(percent_finished * pages), pages)
-                        end
-                        if BookInfoManager:getSetting("show_pages_left_in_progress") then
-                            percent_str = read_text
-                            pages_left_str = T(_("%1 pages left"), Math.round(pages - percent_finished * pages), pages)
-                        end
-                    end
-                elseif not bookinfo._no_provider then
-                    progress_str = unread_text
-                end
+                progress_str, percent_str, pages_str, pages_left_str = ptutil.formatProgressText(status, bookinfo, pages,
+                    draw_progressbar, percent_finished, progress_strings)
 
                 if BookInfoManager:getSetting("show_pages_read_as_progress") then
                     if pages_str ~= "" then

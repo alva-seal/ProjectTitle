@@ -10,6 +10,7 @@ local Size = require("ui/size")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local OverlapGroup = require("ui/widget/overlapgroup")
+local Math = require("optmath")
 local logger = require("logger")
 local Device = require("device")
 local Screen = Device.screen
@@ -144,7 +145,7 @@ function ptutil.getPluginDir()
     end
 end
 
-local function copyRecursive(from, to)
+function ptutil.copyRecursive(from, to)
     -- from: koreader/frontend/apps/filemanager/filemanager.lua
     local cp_bin = Device:isAndroid() and "/system/bin/cp" or "/bin/cp"
     return ffiUtil.execute(cp_bin, "-r", from, to ) == 0
@@ -174,7 +175,7 @@ function ptutil.installFonts()
     end
     if util.directoryExists(fonts_path) then
         -- copy the entire "source"
-        result = copyRecursive(ptutil.getPluginDir() .. "/fonts/source", fonts_path)
+        result = ptutil.copyRecursive(ptutil.getPluginDir() .. "/fonts/source", fonts_path)
         logger.info(ptdbg.logprefix, "Copying fonts")
         if not result then return false end
         package.loaded["ui/font"] = nil
@@ -239,7 +240,7 @@ function ptutil.installIcons()
     return false
 end
 
-local function findCover(dir_path)
+function ptutil.findCover(dir_path)
     if not dir_path or dir_path == "" or dir_path == ".." or dir_path:match("%.%.$") then
         return nil
     end
@@ -259,8 +260,12 @@ local function findCover(dir_path)
     return nil
 end
 
-function ptutil.getFolderCover(filepath, max_img_w, max_img_h)
-    local folder_image_file = findCover(filepath)
+function ptutil.getFolderCover(filepath, max_img_w, max_img_h, pt_cover_path)
+    local folder_image_file = pt_cover_path
+
+    if not folder_image_file then
+        folder_image_file = ptutil.findCover(filepath)
+    end
     if folder_image_file ~= nil then
         local success, folder_image = pcall(function()
             local temp_image = ImageWidget:new { file = folder_image_file, scale_factor = 1 }
@@ -317,7 +322,7 @@ function ptutil.getFolderCover(filepath, max_img_w, max_img_h)
     end
 end
 
-local function query_cover_paths(folder, include_subfolders)
+function ptutil.query_cover_paths(folder, include_subfolders)
     local db_conn = SQ3.open(DataStorage:getSettingsDir() .. "/PT_bookinfo_cache.sqlite3")
     db_conn:set_busy_timeout(5000)
 
@@ -345,7 +350,7 @@ local function query_cover_paths(folder, include_subfolders)
     return res
 end
 
-local function get_thumbnail_size(max_w, max_h)
+function ptutil.get_thumbnail_size(max_w, max_h)
     local max_img_w = 0
     local max_img_h = 0
     if BookInfoManager:getSetting("use_stacked_foldercovers") then
@@ -358,12 +363,12 @@ local function get_thumbnail_size(max_w, max_h)
     return max_img_w, max_img_h
 end
 
-local function build_cover_images(db_res, max_w, max_h)
+function ptutil.build_cover_images(db_res, max_w, max_h)
     local covers = {}
     if db_res then
         local directories = db_res[1]
         local filenames = db_res[2]
-        local max_img_w, max_img_h = get_thumbnail_size(max_w, max_h)
+        local max_img_w, max_img_h = ptutil.get_thumbnail_size(max_w, max_h)
         for i, filename in ipairs(filenames) do
             local fullpath = directories[i] .. filename
             if util.fileExists(fullpath) then
@@ -396,7 +401,7 @@ local function build_cover_images(db_res, max_w, max_h)
 end
 
 -- Helper to create a blank frame-style cover with background
-local function create_blank_cover(width, height, background_idx)
+function ptutil.create_blank_cover(width, height, background_idx)
     local backgrounds = {
         Blitbuffer.COLOR_LIGHT_GRAY,
         Blitbuffer.COLOR_GRAY_D,
@@ -421,11 +426,11 @@ local function create_blank_cover(width, height, background_idx)
 end
 
 -- Build the diagonal stack layout using OverlapGroup
-local function build_diagonal_stack(images, max_w, max_h)
+function ptutil.build_diagonal_stack(images, max_w, max_h)
     local top_image_size = images[#images]:getSize()
     local nb_fakes = (4 - #images)
     for i = 1, nb_fakes do
-        table.insert(images, 1, create_blank_cover(top_image_size.w, top_image_size.h, (i % 2 + 2)))
+        table.insert(images, 1, ptutil.create_blank_cover(top_image_size.w, top_image_size.h, (i % 2 + 2)))
     end
 
     local stack_items = {}
@@ -461,7 +466,7 @@ local function build_diagonal_stack(images, max_w, max_h)
 end
 
 -- Build a 2x2 grid layout using nested horizontal & vertical groups
-local function build_grid(images, max_w, max_h)
+function ptutil.build_grid(images, max_w, max_h)
     local row1 = HorizontalGroup:new {}
     local row2 = HorizontalGroup:new {}
     local layout = VerticalGroup:new {}
@@ -469,17 +474,17 @@ local function build_grid(images, max_w, max_h)
     -- Create blank covers if needed
     if #images == 3 then
         local w3, h3 = images[3]:getSize().w, images[3]:getSize().h
-        table.insert(images, 2, create_blank_cover(w3, h3, 3))
+        table.insert(images, 2, ptutil.create_blank_cover(w3, h3, 3))
     elseif #images == 2 then
         local w1, h1 = images[1]:getSize().w, images[1]:getSize().h
         local w2, h2 = images[2]:getSize().w, images[2]:getSize().h
-        table.insert(images, 2, create_blank_cover(w1, h1, 3))
-        table.insert(images, 3, create_blank_cover(w2, h2, 2))
+        table.insert(images, 2, ptutil.create_blank_cover(w1, h1, 3))
+        table.insert(images, 3, ptutil.create_blank_cover(w2, h2, 2))
     elseif #images == 1 then
         local w1, h1 = images[1]:getSize().w, images[1]:getSize().h
-        table.insert(images, 1, create_blank_cover(w1, h1, 3))
-        table.insert(images, 2, create_blank_cover(w1, h1, 2))
-        table.insert(images, 4, create_blank_cover(w1, h1, 3))
+        table.insert(images, 1, ptutil.create_blank_cover(w1, h1, 3))
+        table.insert(images, 2, ptutil.create_blank_cover(w1, h1, 2))
+        table.insert(images, 4, ptutil.create_blank_cover(w1, h1, 3))
     end
 
     for i, img in ipairs(images) do
@@ -502,21 +507,21 @@ local function build_grid(images, max_w, max_h)
 end
 
 function ptutil.getSubfolderCoverImages(filepath, max_w, max_h)
-    local db_res = query_cover_paths(filepath, false)
-    local images = build_cover_images(db_res, max_w, max_h)
+    local db_res = ptutil.query_cover_paths(filepath, false)
+    local images = ptutil.build_cover_images(db_res, max_w, max_h)
 
     if #images < 4 then
-        db_res = query_cover_paths(filepath, true)
-        images = build_cover_images(db_res, max_w, max_h)
+        db_res = ptutil.query_cover_paths(filepath, true)
+        images = ptutil.build_cover_images(db_res, max_w, max_h)
     end
 
     -- Return nil if no images found
     if #images == 0 then return nil end
 
     if BookInfoManager:getSetting("use_stacked_foldercovers") then
-        return build_diagonal_stack(images, max_w, max_h)
+        return ptutil.build_diagonal_stack(images, max_w, max_h)
     else
-        return build_grid(images, max_w, max_h)
+        return ptutil.build_grid(images, max_w, max_h)
     end
 end
 
@@ -654,6 +659,145 @@ function ptutil.formatTags(keywords, tags_limit)
         formatted_tags = formatted_tags .. "…"
     end
     return formatted_tags
+end
+
+function ptutil.formatProgressText(status, bookinfo, pages, draw_progressbar, percent_finished, progress_strings)
+    local pages_str = ""
+    local pages_left_str = ""
+    local percent_str = ""
+    local progress_str = ""
+
+    if status == "complete" then
+        progress_str = progress_strings.finished
+    elseif status == "abandoned" then
+        progress_str = progress_strings.abandoned
+    elseif percent_finished then
+        progress_str = progress_strings.reading
+        if not draw_progressbar then
+            percent_str = math.floor(100 * percent_finished) .. "%"
+        end
+        if pages then
+            if BookInfoManager:getSetting("show_pages_read_as_progress") then
+                percent_str = progress_strings.reading
+                pages_str = T(_("Page %1 of %2"), Math.round(percent_finished * pages), pages)
+            end
+            if BookInfoManager:getSetting("show_pages_left_in_progress") then
+                percent_str = progress_strings.reading
+                pages_left_str = T(_("%1 pages left"), Math.round(pages - percent_finished * pages), pages)
+            end
+        end
+    elseif not bookinfo._no_provider then
+        progress_str = progress_strings.unread
+    end
+
+    return progress_str, percent_str, pages_str, pages_left_str
+end
+
+function ptutil.formatFooterText(footer_config, _manager, path, fm_default_dir, has_shortcut, meta_browse_mode)
+    if BookInfoManager:getSetting("replace_footer_text") then
+        local config = footer_config or {
+            order = {
+                "clock",
+                "wifi",
+                "battery",
+                "frontlight",
+                "frontlight_warmth",
+            },
+            wifi_show_disabled = true,
+            frontlight_show_off = true,
+        }
+        local genItemText = {
+            battery = function()
+                if Device:hasBattery() then
+                    local powerd = Device:getPowerDevice()
+                    local batt_lvl = powerd:getCapacity()
+                    local batt_symbol = powerd:getBatterySymbol(powerd:isCharged(), powerd:isCharging(), batt_lvl)
+                    local text = BD.wrap(batt_symbol) .. BD.wrap(batt_lvl .. "%")
+                    if Device:hasAuxBattery() and powerd:isAuxBatteryConnected() then
+                        local aux_batt_lvl = powerd:getAuxCapacity()
+                        local aux_batt_symbol =
+                            powerd:getBatterySymbol(powerd:isAuxCharged(), powerd:isAuxCharging(), aux_batt_lvl)
+                        text = text ..
+                            " " .. BD.wrap("+") .. BD.wrap(aux_batt_symbol) .. BD.wrap(aux_batt_lvl .. "%")
+                    end
+                    return text
+                end
+            end,
+            clock = function()
+                local datetime = require("datetime")
+                return datetime.secondsToHour(os.time(), G_reader_settings:isTrue("twelve_hour_clock"))
+            end,
+            frontlight = function()
+                if Device:hasFrontlight() then
+                    local prefix = "✺" -- "☼"
+                    local powerd = Device:getPowerDevice()
+                    if powerd:isFrontlightOn() then
+                        if Device:isCervantes() or Device:isKobo() then
+                            return (prefix .. "%d%%"):format(powerd:frontlightIntensity())
+                        else
+                            return (prefix .. "%d"):format(powerd:frontlightIntensity())
+                        end
+                    else
+                        return config.frontlight_show_off and T(_("%1Off"), prefix)
+                    end
+                end
+            end,
+            frontlight_warmth = function()
+                if Device:hasNaturalLight() then
+                    local prefix = "⊛" -- "💡"
+                    local powerd = Device:getPowerDevice()
+                    if powerd:isFrontlightOn() then
+                        local warmth = powerd:frontlightWarmth()
+                        if warmth then return (prefix .. "%d%%"):format(warmth) end
+                    else
+                        return config.frontlight_show_off and T(_("%1Off"), prefix)
+                    end
+                end
+            end,
+            wifi = function()
+                local NetworkMgr = require("ui/network/manager")
+                return NetworkMgr:isWifiOn() and "" or (config.wifi_show_disabled and "")
+            end,
+        }
+        local device_statuses = {}
+        local alt_footer = nil
+        for _, item in ipairs(config.order) do
+            local text = genItemText[item]()
+            if text then table.insert(device_statuses, text) end
+        end
+        if #device_statuses > 0 then alt_footer = table.concat(device_statuses, ptutil.separator.dot) end
+        if _manager and type(_manager.name) == "string" then
+            return ""
+        else
+            return alt_footer
+        end
+    else
+        local display_path = ""
+        if (path == fm_default_dir or
+                            path == G_reader_settings:readSetting("home_dir")) and
+                            G_reader_settings:nilOrTrue("shorten_home_dir") then
+            display_path = _("Home")
+        elseif _manager and type(_manager.name) == "string" then
+            display_path = ""
+        else
+            -- show only the current folder name, not the whole path
+            local folder_name = "/"
+            local crumbs = {}
+            for crumb in string.gmatch(path, "[^/]+") do
+                table.insert(crumbs, crumb)
+            end
+            if #crumbs > 1 then
+                folder_name = table.concat(crumbs, "", #crumbs, #crumbs)
+            end
+            -- add a star if folder is in shortcuts
+            if has_shortcut then
+                folder_name = "★ " .. folder_name
+            end
+            display_path = folder_name
+        end
+        if meta_browse_mode == true then display_path = _("Library") end
+        return display_path
+    end
 end
 
 return ptutil
